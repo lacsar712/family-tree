@@ -1010,6 +1010,23 @@
       "clear": "Clear search",
       "searching": "Searching…"
     },
+    "filter": {
+      "filters": "Filters",
+      "gender": "Gender",
+      "status": "Status",
+      "has-photo": "Has photo",
+      "all": "All",
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "alive": "Alive",
+      "deceased": "Deceased",
+      "birth-year": "Birth year",
+      "birth-year-from": "From",
+      "birth-year-to": "To",
+      "clear": "Clear filters",
+      "match-count": "Matched {{matched}} / {{total}} people"
+    },
     "controls": {
       "undo": "Undo (Ctrl+Z)",
       "redo": "Redo (Ctrl+Shift+Z)",
@@ -1623,6 +1640,7 @@
       "sign-in": "Sign in",
       "register": "Create account",
       "sign-in-authentik": "Sign in with Authentik",
+      "view-demo": "View demo family tree",
       "switch-to-register": "Need an account? Register",
       "switch-to-login": "Already have an account? Sign in",
       "login-error": "Incorrect username or password.",
@@ -1999,6 +2017,11 @@
       "submit": "Unlock",
       "error": "Incorrect password. Please try again."
     }
+  },
+  "demo-tree": {
+    "title": "Demo family tree",
+    "read-only-hint": "Read-only demo — try the canvas filters on sample data. Log in to build your own tree.",
+    "back-to-login": "Back to login"
   },
   "map-view": {
     "view": {

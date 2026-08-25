@@ -20,6 +20,7 @@ import { useFamilyTreeSettings } from "@/hooks/useFamilyTreeSettings";
 import { FlowPanelControls } from "@/components/view/tree-view/FlowPanelControls";
 import GenerationLines from "@/components/view/tree-view/GenerationLines";
 import { CanvasSearch } from "@/components/view/tree-view/CanvasSearch";
+import { CanvasFilterBar } from "@/components/view/tree-view/CanvasFilterBar";
 import { EmptyTreeState } from "@/components/view/tree-view/EmptyTreeState";
 import { MemberControls } from "@/components/view/tree-view/MemberControls";
 import { ConnectionRelationCard } from "@/components/view/tree-view/ConnectionRelationCard";
@@ -61,6 +62,11 @@ import {
   readMemberSheetDeepLink,
 } from "@/utils/memberSheetState";
 import { getGenerationLineGap } from "@/utils/generationLineSpacing";
+import {
+  CanvasFilterState,
+  DEFAULT_CANVAS_FILTERS,
+  computeCanvasFilter,
+} from "@/utils/canvasMemberFilter";
 
 const nodeTypes = { familyMember: FamilyNode, unionNode: UnionNode };
 const edgeTypes = { relation: RelationEdge };
@@ -146,6 +152,16 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [membersToDelete, setMembersToDelete] = useState<Member[]>([]);
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
+  const [canvasFilters, setCanvasFilters] = useState<CanvasFilterState>(
+    DEFAULT_CANVAS_FILTERS,
+  );
+
+  // Match / dim sets for the canvas member filter. Unmatched members are only
+  // faded (never removed), so unions, edges and generation lines are untouched.
+  const canvasFilterResult = useMemo(
+    () => computeCanvasFilter(members, canvasFilters),
+    [members, canvasFilters],
+  );
 
   // --- Extracted hooks ---
   const locator = useMemberLocator(members, rfInstance);
@@ -504,6 +520,7 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
     publicView,
     accessibleTreeIds,
     selection.isSelectionMode,
+    canvasFilterResult.dimmedIds,
   );
   const viewEdges = useFlowEdges(
     baseEdges,
@@ -719,6 +736,13 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
               treeId={activeTree?.id}
               onFocusRoot={setFocusRoot}
               onOpenOtherTree={openTreeAndLocateMember}
+            />
+            <CanvasFilterBar
+              filters={canvasFilters}
+              onChange={setCanvasFilters}
+              matchedCount={canvasFilterResult.matchedCount}
+              totalCount={canvasFilterResult.totalCount}
+              className={isMobile ? "w-full flex-wrap" : undefined}
             />
             {windowed && neighborhoodTruncated && (
               <div className="rounded-md border bg-background/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
