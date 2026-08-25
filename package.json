@@ -1,0 +1,21 @@
+{
+  "name": "family-tree",
+  "private": true,
+  "description": "Repo-level tooling (formatting + git hooks). The web app lives in frontend/, the API in backend/.",
+  "scripts": {
+    "prepare": "husky",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend run test",
+    "check-i18n": "npm --prefix frontend run check-i18n",
+    "format": "prettier --write ."
+  },
+  "lint-staged": {
+    "**/*": "prettier --write --ignore-unknown"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "prettier": "3.9.6"
+  }
+}

@@ -1,0 +1,93 @@
+# Family Tree — Docker Desktop 一键启动
+# 用法: docker compose up --build
+#
+# 端口约定（按目录 GSB0825 → 25）:
+#   前端 3025 | 后端 API 8025 | PostgreSQL 5025
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: family-tree-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: familytree
+      POSTGRES_PASSWORD: familytree
+      POSTGRES_DB: familytree
+      # postgres:18+ 需显式固定 PGDATA，否则挂载卷可能无法启动
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "5025:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familytree"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    container_name: family-tree-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      SECRET_KEY: family-tree-local-secret-key-please-change-in-prod
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: familytree
+      POSTGRES_PASSWORD: familytree
+      POSTGRES_DB: familytree
+      DATA_PATH: /data
+      APP_DATA_PATH: /appdata
+      FRONTEND_URL: http://localhost:3025
+      CORS_ORIGINS: http://localhost:3025
+      ALLOW_SELF_REGISTRATION: "false"
+      FIRST_ADMIN_USERNAME: admin
+      FIRST_ADMIN_PASSWORD: admin12345678
+      FIRST_ADMIN_EMAIL: admin@example.com
+      WORKERS: "1"
+    volumes:
+      - media_data:/data
+      - app_data:/appdata
+    ports:
+      - "8025:8000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:8000/api/health/ready'')"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: family-tree-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3025:8080"
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+  media_data:
+  app_data:
+
+networks:
+  app-network:
+    driver: bridge

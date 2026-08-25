@@ -1,0 +1,66 @@
+from sqlalchemy import JSON, BigInteger, Boolean, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base, new_uuid, utcnow_iso
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    username: Mapped[str] = mapped_column(String(150), unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Account profile fields are deliberately separate from ``full_name``.
+    # ``full_name`` is legacy/OIDC display metadata; users control these fields.
+    first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Random stored filename; the protected API constructs the public URL.
+    profile_image: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Null for accounts that authenticate exclusively through an OAuth provider.
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # "local" or "authentik".
+    auth_provider: Mapped[str] = mapped_column(String(50), default="local")
+    # OIDC subject identifier, when provisioned through Authentik.
+    oauth_subject: Mapped[str | None] = mapped_column(
+        String(255), unique=True, nullable=True
+    )
+
+    created_at: Mapped[str] = mapped_column(String(40), default=utcnow_iso)
+
+    # Soft-deletion: when an admin schedules an account for deletion it enters a
+    # grace period instead of being purged immediately. A non-null
+    # ``deletion_requested_at`` means the account is pending deletion (blocked
+    # from logging in). ``deletion_scheduled_for`` is the absolute purge deadline,
+    # frozen when deletion is requested so later changes to the grace-period
+    # setting never move existing deadlines.
+    deletion_requested_at: Mapped[str | None] = mapped_column(
+        String(40), nullable=True
+    )
+    deletion_scheduled_for: Mapped[str | None] = mapped_column(
+        String(40), nullable=True
+    )
+    deletion_requested_by: Mapped[str | None] = mapped_column(
+        String(36), nullable=True
+    )
+
+    tab_preferences: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    preferences: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    # TOTP two-factor authentication (local accounts only).
+    # totp_secret holds the base32 secret while enrollment is in progress
+    # and after 2FA is enabled. totp_enabled gates the second step at login.
+    # totp_recovery_codes is a JSON list of SHA-256-hashed single-use codes.
+    totp_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    totp_recovery_codes: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+    # Per-user storage quotas (NULL = use instance default; 0 = unlimited).
+    # The total is not a separate limit — it is reported as tree + media.
+    tree_quota_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    media_quota_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

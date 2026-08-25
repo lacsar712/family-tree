@@ -1,0 +1,1251 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTreeStore } from "@/hooks/useTreeStore";
+import { formatDate } from "@/utils/dateUtils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Check,
+  ChevronsUpDown,
+  Copy,
+  Crown,
+  EyeOff,
+  Globe,
+  Link,
+  UserPlus,
+  X,
+} from "lucide-react";
+import { useTreeSharingStore } from "@/hooks/useTreeSharingStore";
+import { cn } from "@/lib/utils";
+import {
+  LinkedShareTree,
+  RESTRICTABLE_DOMAINS,
+  ShareCandidate,
+  ShareRole,
+  Tree,
+  TreeAccess,
+  TreeInvitation,
+} from "@/types/tree";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+
+type Props = {
+  tree: Tree;
+  isOpen: boolean;
+  onClose: () => void;
+  onTreeUpdated?: (tree: Tree) => void;
+};
+
+type StagedUser = ShareCandidate & { role: ShareRole };
+
+export const ShareTreeDialog = ({
+  tree,
+  isOpen,
+  onClose,
+  onTreeUpdated,
+}: Props) => {
+  const { t } = useTranslation(undefined, { keyPrefix: "dialog.share-tree" });
+  const isOwner = tree.role === "owner";
+
+  // Hold the latest tree props so the open-time effect can initialize from them
+  // without re-running (and re-fetching) when the tree object changes while the
+  // dialog is already open — e.g. after toggling public access, which otherwise
+  // flickers the dialog as the confirmation closes (#517).
+  const treeRef = useRef(tree);
+  treeRef.current = tree;
+
+  const access = useTreeSharingStore((state) => state.access);
+  const candidates = useTreeSharingStore((state) => state.candidates);
+  const invitations = useTreeSharingStore((state) => state.invitations);
+  const linkedTrees = useTreeSharingStore((state) => state.linkedTrees);
+  const loadSharing = useTreeSharingStore((state) => state.load);
+  const grantAccess = useTreeSharingStore((state) => state.grantAccess);
+  const revokeAccess = useTreeSharingStore((state) => state.revokeAccess);
+  const updateMemberRestrictions = useTreeSharingStore(
+    (state) => state.updateMemberRestrictions,
+  );
+  const transferOwnership = useTreeSharingStore(
+    (state) => state.transferOwnership,
+  );
+  const revertTransfer = useTreeSharingStore((state) => state.revertTransfer);
+  const createInvitation = useTreeSharingStore(
+    (state) => state.createInvitation,
+  );
+  const revokeInvitation = useTreeSharingStore(
+    (state) => state.revokeInvitation,
+  );
+  const setPublicAccess = useTreeSharingStore((state) => state.setPublicAccess);
+  const setPublicPassword = useTreeSharingStore(
+    (state) => state.setPublicPassword,
+  );
+  const getLinkedShareTrees = useTreeSharingStore(
+    (state) => state.getLinkedShareTrees,
+  );
+  const grantAccessBatch = useTreeSharingStore(
+    (state) => state.grantAccessBatch,
+  );
+  const revokeAccessBatch = useTreeSharingStore(
+    (state) => state.revokeAccessBatch,
+  );
+  const [staged, setStaged] = useState<StagedUser[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [transferTo, setTransferTo] = useState("");
+  const [confirmTransferOpen, setConfirmTransferOpen] = useState(false);
+  const [retainAccess, setRetainAccess] = useState(false);
+  const [retainRole, setRetainRole] = useState<ShareRole>("viewer");
+
+  // Invitations state
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<ShareRole>("editor");
+  const [inviteExpiry, setInviteExpiry] = useState<string>("never");
+  const [creatingInvite, setCreatingInvite] = useState(false);
+
+  // Public access state
+  const [publicRole, setPublicRole] = useState<"viewer" | null>(
+    tree.public_role ?? null,
+  );
+  const [confirmPublicOpen, setConfirmPublicOpen] = useState(false);
+  const [pendingPublicRole, setPendingPublicRole] = useState<"viewer" | null>(
+    null,
+  );
+  const [publicPasswordProtected, setPublicPasswordProtected] =
+    useState<boolean>(tree.public_password_protected ?? false);
+  const [publicPasswordInput, setPublicPasswordInput] = useState("");
+  const publicPasswordError = useMemo(() => {
+    if (!publicPasswordInput) return null;
+    if (publicPasswordInput.length < 8) {
+      return t("public.password.too-short");
+    }
+    if (new TextEncoder().encode(publicPasswordInput).length > 72) {
+      return t("public.password.too-long");
+    }
+    return null;
+  }, [publicPasswordInput, t]);
+
+  // Linked trees (issue #537): grant/revoke access on linked trees together
+  // with the anchor tree, as a convenience batch operation.
+  const [shareLinkedToo, setShareLinkedToo] = useState(false);
+  const [selectedLinkedIds, setSelectedLinkedIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [revokeLinkedOpen, setRevokeLinkedOpen] = useState(false);
+  const [revokeLinkedCandidates, setRevokeLinkedCandidates] = useState<
+    LinkedShareTree[]
+  >([]);
+  const [revokeLinkedSelectedIds, setRevokeLinkedSelectedIds] = useState<
+    Set<string>
+  >(new Set());
+  const [revokeTarget, setRevokeTarget] = useState<{
+    userId: string;
+    username: string;
+  } | null>(null);
+
+  const manageableLinkedTrees = useMemo(
+    () => linkedTrees.filter((lt) => lt.manageable),
+    [linkedTrees],
+  );
+  const nonManageableLinkedTrees = useMemo(
+    () => linkedTrees.filter((lt) => !lt.manageable),
+    [linkedTrees],
+  );
+
+  // Any active user other than the current owner is an eligible new owner:
+  // existing members plus the share candidates (users without access yet).
+  const transferTargets = useMemo(
+    () =>
+      [
+        ...access
+          .filter((a) => a.role !== "owner")
+          .map((a) => ({ user_id: a.user_id, username: a.username })),
+        ...candidates,
+      ].sort((a, b) => a.username.localeCompare(b.username)),
+    [access, candidates],
+  );
+
+  const reload = useCallback(async () => {
+    await loadSharing(tree.id, {
+      includeInvitations: isOwner,
+      includeLinkedTrees: isOwner,
+    });
+  }, [tree.id, isOwner, loadSharing]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStaged([]);
+      setTransferTo("");
+      setRetainAccess(false);
+      setRetainRole("viewer");
+      setInviteEmail("");
+      setInviteRole("editor");
+      setInviteExpiry("never");
+      setPublicRole(treeRef.current.public_role ?? null);
+      setPublicPasswordProtected(
+        treeRef.current.public_password_protected ?? false,
+      );
+      setPublicPasswordInput("");
+      setShareLinkedToo(false);
+      setSelectedLinkedIds(new Set());
+      setRevokeLinkedOpen(false);
+      setRevokeLinkedCandidates([]);
+      setRevokeLinkedSelectedIds(new Set());
+      setRevokeTarget(null);
+      void reload();
+    }
+  }, [isOpen, reload]);
+
+  // Default every manageable linked tree to checked whenever the list (re)loads.
+  useEffect(() => {
+    setSelectedLinkedIds(
+      new Set(manageableLinkedTrees.map((lt) => lt.tree_id)),
+    );
+  }, [manageableLinkedTrees]);
+
+  const toggleStaged = (candidate: ShareCandidate) => {
+    setStaged((prev) =>
+      prev.some((s) => s.user_id === candidate.user_id)
+        ? prev.filter((s) => s.user_id !== candidate.user_id)
+        : [...prev, { ...candidate, role: "editor" }],
+    );
+  };
+
+  const setStagedRole = (userId: string, role: ShareRole) => {
+    setStaged((prev) =>
+      prev.map((s) => (s.user_id === userId ? { ...s, role } : s)),
+    );
+  };
+
+  const handleShare = async () => {
+    const includeLinked = shareLinkedToo && selectedLinkedIds.size > 0;
+    try {
+      for (const s of staged) {
+        if (includeLinked) {
+          await grantAccessBatch(tree.id, s.username, s.role, [
+            tree.id,
+            ...selectedLinkedIds,
+          ]);
+        } else {
+          await grantAccess(tree.id, s.username, s.role);
+        }
+      }
+      setStaged([]);
+      setShareLinkedToo(false);
+      await reload();
+      toast.success(t("shared"));
+    } catch (err) {
+      console.error(err);
+      toast.error(t("share-error"));
+    }
+  };
+
+  const handleRoleChange = async (member: TreeAccess, role: ShareRole) => {
+    try {
+      const updated = await grantAccess(tree.id, member.username, role);
+      useTreeSharingStore.setState({ access: updated });
+    } catch (err) {
+      console.error(err);
+      toast.error(t("share-error"));
+    }
+  };
+
+  const handleRestrictionToggle = async (
+    member: TreeAccess,
+    domain: string,
+    accessible: boolean,
+  ) => {
+    const current = member.restrictions ?? [];
+    const next = accessible
+      ? current.filter((d) => d !== domain)
+      : [...new Set([...current, domain])];
+    try {
+      const updated = await updateMemberRestrictions(
+        tree.id,
+        member.user_id,
+        next,
+      );
+      useTreeSharingStore.setState({ access: updated });
+    } catch (err) {
+      console.error(err);
+      toast.error(t("restrictions-error"));
+    }
+  };
+
+  const handleRevoke = async (userId: string, username: string) => {
+    if (manageableLinkedTrees.length > 0) {
+      try {
+        const linked = await getLinkedShareTrees(tree.id, username);
+        const revocable = linked.filter(
+          (lt) =>
+            lt.manageable &&
+            (lt.target_role === "viewer" || lt.target_role === "editor"),
+        );
+        if (revocable.length > 0) {
+          setRevokeLinkedCandidates(revocable);
+          setRevokeLinkedSelectedIds(
+            new Set(revocable.map((lt) => lt.tree_id)),
+          );
+          setRevokeTarget({ userId, username });
+          setRevokeLinkedOpen(true);
+          return;
+        }
+      } catch (err) {
+        // Fall through to a plain revoke if the linked-trees lookup fails —
+        // it's a convenience add-on, not a prerequisite for revoking access.
+        console.error(err);
+      }
+    }
+    await revokeAnchorOnly(userId);
+  };
+
+  const revokeAnchorOnly = async (userId: string) => {
+    try {
+      await revokeAccess(tree.id, userId);
+      await reload();
+    } catch (err) {
+      console.error(err);
+      toast.error(t("revoke-error"));
+    }
+  };
+
+  const handleRevokeLinkedConfirm = async () => {
+    if (!revokeTarget) return;
+    try {
+      await revokeAccessBatch(tree.id, revokeTarget.userId, [
+        tree.id,
+        ...revokeLinkedSelectedIds,
+      ]);
+      setRevokeLinkedOpen(false);
+      setRevokeTarget(null);
+      await reload();
+    } catch (err) {
+      console.error(err);
+      toast.error(t("revoke-error"));
+    }
+  };
+
+  const handleRevokeAnchorOnly = async () => {
+    if (!revokeTarget) return;
+    setRevokeLinkedOpen(false);
+    await revokeAnchorOnly(revokeTarget.userId);
+    setRevokeTarget(null);
+  };
+
+  const handleRevokeLinkedOpenChange = (open: boolean) => {
+    setRevokeLinkedOpen(open);
+    if (!open) {
+      setRevokeTarget(null);
+    }
+  };
+
+  const toggleRevokeLinkedId = (treeId: string) => {
+    setRevokeLinkedSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(treeId)) {
+        next.delete(treeId);
+      } else {
+        next.add(treeId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectedLinkedId = (treeId: string) => {
+    setSelectedLinkedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(treeId)) {
+        next.delete(treeId);
+      } else {
+        next.add(treeId);
+      }
+      return next;
+    });
+  };
+
+  const showUndoToast = (
+    treeId: string,
+    treeName: string,
+    username: string,
+    undoAvailableUntil: string,
+  ) => {
+    const deadline = new Date(undoAvailableUntil).getTime();
+    const toastId = `transfer-undo-${treeId}`;
+    let cancelled = false;
+
+    const renderToast = () => {
+      if (cancelled) return;
+      const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      if (remaining <= 0) {
+        toast.dismiss(toastId);
+        return;
+      }
+      toast(t("transfer-undo-title"), {
+        id: toastId,
+        description: t("transfer-undo-description", {
+          name: treeName,
+          username,
+        }),
+        duration: deadline - Date.now() + 500,
+        onDismiss: () => {
+          cancelled = true;
+        },
+        onAutoClose: () => {
+          cancelled = true;
+        },
+        action: {
+          label: t("transfer-undo-button", { seconds: remaining }),
+          onClick: () => {
+            cancelled = true;
+            void revertTransfer(treeId)
+              .then(() => {
+                toast.dismiss(toastId);
+                toast.success(t("transfer-reverted"));
+                void useTreeStore.getState().loadTrees();
+              })
+              .catch(() => {
+                cancelled = false;
+                toast.error(t("transfer-revert-error"));
+              });
+          },
+        },
+      });
+      setTimeout(renderToast, 1000);
+    };
+    renderToast();
+  };
+
+  const handleTransfer = async () => {
+    try {
+      const result = await transferOwnership(
+        tree.id,
+        transferTo,
+        retainAccess ? retainRole : undefined,
+      );
+      setConfirmTransferOpen(false);
+      setTransferTo("");
+      await useTreeStore.getState().loadTrees();
+      onClose();
+      if (result.undo_available_until) {
+        showUndoToast(
+          tree.id,
+          tree.name,
+          transferTo,
+          result.undo_available_until,
+        );
+      } else {
+        toast.success(t("transfer-success"));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(t("transfer-error"));
+    }
+  };
+
+  const handleCreateInvite = async () => {
+    setCreatingInvite(true);
+    try {
+      const expiresInDays =
+        inviteExpiry === "never" ? undefined : inviteExpiry === "7" ? 7 : 30;
+      await createInvitation(tree.id, {
+        email: inviteEmail || undefined,
+        role: inviteRole,
+        expiresInDays,
+      });
+      setInviteEmail("");
+      setInviteRole("editor");
+      setInviteExpiry("never");
+      await reload();
+    } catch (err) {
+      console.error(err);
+      toast.error(t("invites.create-error"));
+    } finally {
+      setCreatingInvite(false);
+    }
+  };
+
+  const handleRevokeInvite = async (invitationId: string) => {
+    try {
+      await revokeInvitation(tree.id, invitationId);
+      await reload();
+    } catch (err) {
+      console.error(err);
+      toast.error(t("invites.revoke-error"));
+    }
+  };
+
+  const handleCopyLink = (token: string) => {
+    const url = `${window.location.origin}/#invite=${token}`;
+    void navigator.clipboard.writeText(url);
+    toast.success(t("invites.link-copied"));
+  };
+
+  const handlePublicToggle = (checked: boolean) => {
+    setPendingPublicRole(checked ? "viewer" : null);
+    setConfirmPublicOpen(true);
+  };
+
+  const handlePublicOpenChange = (open: boolean) => {
+    setConfirmPublicOpen(open);
+    if (!open) {
+      setPendingPublicRole(null);
+    }
+  };
+
+  const handleTransferOpenChange = (open: boolean) => {
+    setConfirmTransferOpen(open);
+    if (!open) {
+      setTransferTo("");
+    }
+  };
+
+  const handlePublicConfirm = async () => {
+    try {
+      const updated = await setPublicAccess(tree.id, pendingPublicRole);
+      setPublicRole(updated.public_role ?? null);
+      // Disabling public access clears the password server-side.
+      setPublicPasswordProtected(updated.public_password_protected ?? false);
+      onTreeUpdated?.(updated);
+      setConfirmPublicOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error(t("public.error"));
+      setConfirmPublicOpen(false);
+    }
+  };
+
+  const handleSetPublicPassword = async () => {
+    if (publicPasswordError) return;
+    try {
+      const updated = await setPublicPassword(tree.id, publicPasswordInput);
+      setPublicPasswordProtected(updated.public_password_protected ?? false);
+      setPublicPasswordInput("");
+      onTreeUpdated?.(updated);
+      toast.success(t("public.password.saved"));
+    } catch (err) {
+      console.error(err);
+      toast.error(t("public.password.error"));
+    }
+  };
+
+  const handleRemovePublicPassword = async () => {
+    try {
+      const updated = await setPublicPassword(tree.id, null);
+      setPublicPasswordProtected(updated.public_password_protected ?? false);
+      setPublicPasswordInput("");
+      onTreeUpdated?.(updated);
+      toast.success(t("public.password.removed"));
+    } catch (err) {
+      console.error(err);
+      toast.error(t("public.password.error"));
+    }
+  };
+
+  const inviteStatusBadge = (status: TreeInvitation["status"]) => {
+    const variants: Record<
+      TreeInvitation["status"],
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
+      pending: "default",
+      accepted: "secondary",
+      revoked: "destructive",
+      expired: "outline",
+    };
+    return (
+      <Badge variant={variants[status]}>{t(`invites.status-${status}`)}</Badge>
+    );
+  };
+
+  const publicLink = `${window.location.origin}/#public=${tree.id}`;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:min-w-[600px]"
+        onInteractOutside={(e) => {
+          // The public-access / transfer confirmations render as sibling
+          // AlertDialog portals. Radix treats a pointer-down or focus change
+          // inside them as an interaction "outside" this dialog and would
+          // dismiss it — closing the share dialog on cancel, or setting the
+          // tree to null then back on confirm (replaying the open animation).
+          // Keep the share dialog open for any interaction originating from a
+          // nested alert dialog. (#517)
+          const target = e.target as Element | null;
+          if (target?.closest?.('[data-slot^="alert-dialog"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>{t("title", { name: tree.name })}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
+        </DialogHeader>
+
+        {/* People who already have access */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{t("current-access")}</p>
+          {access.map((a) => (
+            <div
+              key={a.user_id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2"
+            >
+              <span className="min-w-0 truncate text-sm font-medium">
+                {a.username}
+              </span>
+              {a.role === "owner" ? (
+                <Badge variant="secondary">{t("role-owner")}</Badge>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {isOwner && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title={t("restrictions-button")}
+                        >
+                          <EyeOff className="h-4 w-4" />
+                          {(a.restrictions?.length ?? 0) > 0 && (
+                            <Badge
+                              variant="secondary"
+                              className="ml-1 h-4 px-1 text-xs"
+                            >
+                              {a.restrictions!.length}
+                            </Badge>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48 p-2" align="end">
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">
+                          {t("restrictions-title")}
+                        </p>
+                        {RESTRICTABLE_DOMAINS.map((domain) => (
+                          <div
+                            key={domain}
+                            className="flex items-center justify-between py-1"
+                          >
+                            <span className="text-sm">
+                              {t(`domains.${domain}`)}
+                            </span>
+                            <Switch
+                              checked={
+                                !(a.restrictions?.includes(domain) ?? false)
+                              }
+                              onCheckedChange={(checked) =>
+                                handleRestrictionToggle(a, domain, checked)
+                              }
+                            />
+                          </div>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  <Select
+                    value={a.role}
+                    onValueChange={(v) => handleRoleChange(a, v as ShareRole)}
+                  >
+                    <SelectTrigger className="h-8 w-28">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="editor">{t("role-editor")}</SelectItem>
+                      <SelectItem value="viewer">{t("role-viewer")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRevoke(a.user_id, a.username)}
+                    title={t("revoke")}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Add new people */}
+        <div className="space-y-2 border-t pt-4">
+          <p className="text-sm font-medium">{t("add-people")}</p>
+          <p className="text-xs text-muted-foreground">
+            {t("friends-only-hint")}
+          </p>
+
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={pickerOpen}
+                className="w-full justify-between font-normal"
+                disabled={candidates.length === 0}
+              >
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <UserPlus className="h-4 w-4" />
+                  {candidates.length === 0
+                    ? t("no-candidates")
+                    : t("select-users")}
+                </span>
+                <ChevronsUpDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[var(--radix-popover-trigger-width)] p-0"
+              align="start"
+            >
+              <Command>
+                <CommandInput placeholder={t("search-placeholder")} />
+                <CommandList>
+                  <CommandEmpty>{t("no-users")}</CommandEmpty>
+                  <CommandGroup>
+                    {candidates.map((c) => {
+                      const isStaged = staged.some(
+                        (s) => s.user_id === c.user_id,
+                      );
+                      return (
+                        <CommandItem
+                          key={c.user_id}
+                          value={c.username}
+                          onSelect={() => toggleStaged(c)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              isStaged ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          {c.username}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {staged.length > 0 && (
+            <div className="space-y-2">
+              {staged.map((s) => (
+                <div
+                  key={s.user_id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed p-2"
+                >
+                  <span className="min-w-0 truncate text-sm font-medium">
+                    {s.username}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={s.role}
+                      onValueChange={(v) =>
+                        setStagedRole(s.user_id, v as ShareRole)
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="editor">
+                          {t("role-editor")}
+                        </SelectItem>
+                        <SelectItem value="viewer">
+                          {t("role-viewer")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleStaged(s)}
+                      title={t("remove")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              {manageableLinkedTrees.length > 0 && (
+                <div className="space-y-2 rounded-md border p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">
+                      {t("linked.share-toggle", {
+                        count: manageableLinkedTrees.length,
+                      })}
+                    </span>
+                    <Switch
+                      checked={shareLinkedToo}
+                      onCheckedChange={setShareLinkedToo}
+                    />
+                  </div>
+                  {shareLinkedToo && (
+                    <div className="space-y-1 pl-2">
+                      {manageableLinkedTrees.map((lt) => (
+                        <label
+                          key={lt.tree_id}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-primary"
+                            checked={selectedLinkedIds.has(lt.tree_id)}
+                            onChange={() => toggleSelectedLinkedId(lt.tree_id)}
+                          />
+                          <span>{lt.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t("linked.member-count", {
+                              count: lt.member_count,
+                            })}
+                          </span>
+                        </label>
+                      ))}
+                      {nonManageableLinkedTrees.map((lt) => (
+                        <label
+                          key={lt.tree_id}
+                          className="flex items-center gap-2 text-sm text-muted-foreground"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={false}
+                            disabled
+                          />
+                          <span>{lt.name}</span>
+                          <span className="text-xs">
+                            {t("linked.not-yours")}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Button className="w-full" onClick={handleShare}>
+                {t("share-button", { count: staged.length })}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Invite by link (owner only) */}
+        {isOwner && (
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center gap-2">
+              <Link className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">{t("invites.title")}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("invites.description")}
+            </p>
+
+            {/* Create invite form */}
+            <div className="space-y-2">
+              <Input
+                placeholder={t("invites.email-placeholder")}
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                type="email"
+              />
+              <div className="flex gap-2">
+                <Select
+                  value={inviteRole}
+                  onValueChange={(v) => setInviteRole(v as ShareRole)}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="editor">{t("role-editor")}</SelectItem>
+                    <SelectItem value="viewer">{t("role-viewer")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={inviteExpiry} onValueChange={setInviteExpiry}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="never">
+                      {t("invites.expiry-never")}
+                    </SelectItem>
+                    <SelectItem value="7">{t("invites.expiry-7d")}</SelectItem>
+                    <SelectItem value="30">
+                      {t("invites.expiry-30d")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={handleCreateInvite}
+                disabled={creatingInvite}
+              >
+                {t("invites.create-button")}
+              </Button>
+            </div>
+
+            {/* Existing invitations */}
+            {invitations.length > 0 ? (
+              <div className="space-y-2">
+                {invitations.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between rounded-md border p-2 text-sm"
+                  >
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {inviteStatusBadge(inv.status)}
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {inv.role}
+                        </span>
+                        {inv.email && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {inv.email}
+                          </span>
+                        )}
+                      </div>
+                      {inv.expires_at && inv.status === "pending" && (
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(inv.expires_at)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {inv.token && inv.status === "pending" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCopyLink(inv.token!)}
+                          title={t("invites.copy-link")}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {inv.status === "pending" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRevokeInvite(inv.id)}
+                          title={t("invites.revoke")}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {t("invites.none-yet")}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Public access (owner only) */}
+        {isOwner && (
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">{t("public.title")}</p>
+              </div>
+              <Switch
+                checked={publicRole === "viewer"}
+                onCheckedChange={handlePublicToggle}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">{t("public.hint")}</p>
+            {publicRole === "viewer" && (
+              <>
+                <div className="flex w-full items-center gap-2 rounded-md border bg-muted/50 p-2">
+                  <span className="flex-1 min-w-0 truncate text-xs text-muted-foreground">
+                    {publicLink}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(publicLink);
+                      toast.success(t("invites.link-copied"));
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    {t("public.password.hint")}
+                  </p>
+                  {publicPasswordProtected && (
+                    <div className="flex items-center justify-between rounded-md border bg-muted/50 p-2">
+                      <span className="text-xs font-medium">
+                        {t("public.password.protected")}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRemovePublicPassword}
+                      >
+                        {t("public.password.remove")}
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder={t("public.password.placeholder")}
+                      value={publicPasswordInput}
+                      onChange={(e) => setPublicPasswordInput(e.target.value)}
+                      minLength={8}
+                      maxLength={72}
+                      aria-invalid={Boolean(publicPasswordError)}
+                      aria-describedby={
+                        publicPasswordError
+                          ? "public-password-error"
+                          : undefined
+                      }
+                    />
+                    <Button
+                      variant="outline"
+                      disabled={!publicPasswordInput || !!publicPasswordError}
+                      onClick={handleSetPublicPassword}
+                    >
+                      {publicPasswordProtected
+                        ? t("public.password.update")
+                        : t("public.password.set")}
+                    </Button>
+                  </div>
+                  {publicPasswordError ? (
+                    <p
+                      id="public-password-error"
+                      className="text-xs text-destructive"
+                    >
+                      {publicPasswordError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {t("public.password.requirements")}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Transfer ownership */}
+        <div className="space-y-2 border-t pt-4">
+          <p className="text-sm font-medium">{t("transfer-title")}</p>
+          <p className="text-xs text-muted-foreground">{t("transfer-hint")}</p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select
+              value={transferTo}
+              onValueChange={setTransferTo}
+              disabled={transferTargets.length === 0}
+            >
+              <SelectTrigger
+                className="w-full min-w-0 sm:w-auto sm:flex-1"
+                aria-label={t("transfer-select")}
+              >
+                <SelectValue
+                  placeholder={
+                    transferTargets.length === 0
+                      ? t("transfer-no-targets")
+                      : t("transfer-select")
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {transferTargets.map((u) => (
+                  <SelectItem key={u.user_id} value={u.username}>
+                    {u.username}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={!transferTo}
+              onClick={() => {
+                setConfirmTransferOpen(true);
+              }}
+            >
+              <Crown className="h-4 w-4" />
+              {t("transfer-button")}
+            </Button>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm">{t("transfer-retain-toggle")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("transfer-retain-hint")}
+              </p>
+            </div>
+            <Switch checked={retainAccess} onCheckedChange={setRetainAccess} />
+          </div>
+          {retainAccess && (
+            <div className="flex items-center gap-2">
+              <p className="text-sm flex-1">
+                {t("transfer-retain-role-label")}
+              </p>
+              <Select
+                value={retainRole}
+                onValueChange={(v) => setRetainRole(v as ShareRole)}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="viewer">{t("role-viewer")}</SelectItem>
+                  <SelectItem value="editor">{t("role-editor")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+
+      {/* Transfer confirmation */}
+      <AlertDialog
+        open={confirmTransferOpen}
+        onOpenChange={handleTransferOpenChange}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("transfer-confirm-title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("transfer-confirm-description", {
+                username: transferTo,
+                name: tree.name,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("transfer-confirm-cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleTransfer}>
+              {t("transfer-confirm-action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Public access confirmation */}
+      <AlertDialog
+        open={confirmPublicOpen}
+        onOpenChange={handlePublicOpenChange}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingPublicRole === "viewer"
+                ? t("public.confirm-enable-title")
+                : t("public.confirm-disable-title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingPublicRole === "viewer"
+                ? t("public.confirm-enable-description")
+                : t("public.confirm-disable-description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("transfer-confirm-cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handlePublicConfirm}>
+              {pendingPublicRole === "viewer"
+                ? t("public.confirm-enable-action")
+                : t("public.disable")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Revoke-with-linked-trees confirmation */}
+      <AlertDialog
+        open={revokeLinkedOpen}
+        onOpenChange={handleRevokeLinkedOpenChange}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("linked.revoke-confirm-title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("linked.revoke-confirm-description", {
+                username: revokeTarget?.username,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            {revokeLinkedCandidates.map((lt) => (
+              <label
+                key={lt.tree_id}
+                className="flex items-center gap-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary"
+                  checked={revokeLinkedSelectedIds.has(lt.tree_id)}
+                  onChange={() => toggleRevokeLinkedId(lt.tree_id)}
+                />
+                <span>{lt.name}</span>
+              </label>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleRevokeAnchorOnly}>
+              {t("linked.revoke-this-tree-only")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleRevokeLinkedConfirm}>
+              {t("linked.revoke-confirm-action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Dialog>
+  );
+};

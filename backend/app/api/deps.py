@@ -1,0 +1,215 @@
+"""Shared FastAPI dependencies: authentication and tree authorization."""
+
+from fastapi import Depends, Header, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.security import decode_access_token, decode_public_tree_token
+from app.db.session import get_db
+from app.models import Tree, TreeMembership, User
+from app.services.tree_roles import role_for
+
+_bearer = HTTPBearer(auto_error=False)
+
+# Stable detail code returned to the frontend when login is refused because the
+# account is pending deletion, so it can show a dedicated translated message.
+ACCOUNT_PENDING_DELETION = "account_pending_deletion"
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> User:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except Exception as exc:  # noqa: BLE001 - any decode failure is a 401
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        ) from exc
+
+    user = db.get(User, payload.get("sub"))
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive or unknown user"
+        )
+    # Reject accounts pending deletion. A 401 (rather than 403) lets the existing
+    # global handler bounce live sessions back to the login screen, where the
+    # dedicated pending-deletion message is shown on the next attempt.
+    if user.deletion_requested_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=ACCOUNT_PENDING_DELETION
+        )
+    # Tree-change SSE events use the request-scoped session to identify the
+    # editor for live-presence highlighting.
+    db.info["tree_event_actor_id"] = user.id
+    return user
+
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
+        )
+    return user
+
+
+def require_domain(domain: str):
+    """Hide a content domain from a restricted shared-tree member.
+
+    Owners, admins, and public viewers have no membership row and always pass.
+    """
+    from app.services.trees.restrictions import RESTRICTABLE_DOMAINS
+
+    if domain not in RESTRICTABLE_DOMAINS:
+        raise ValueError(f"Unknown restrictable domain: {domain}")
+
+    def dependency(
+        tree_id: str,
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> None:
+        membership = db.get(TreeMembership, (tree_id, user.id))
+        if (
+            membership
+            and membership.restrictions
+            and domain in membership.restrictions
+        ):
+            raise HTTPException(status_code=404, detail="Not found")
+
+    return dependency
+
+
+def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Like get_current_user but returns None instead of raising on missing creds."""
+    if credentials is None:
+        return None
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except Exception:  # noqa: BLE001
+        return None
+    user = db.get(User, payload.get("sub"))
+    if user is None or not user.is_active or user.deletion_requested_at is not None:
+        return None
+    return user
+
+
+def _public_access_ok(tree: Tree, public_token: str | None) -> bool:
+    """True if the tree needs no public password, or the supplied unlock token
+    is valid for this tree."""
+    if not tree.public_password_hash:
+        return True
+    if not public_token:
+        return False
+    try:
+        tree_id, access_version = decode_public_tree_token(public_token)
+        return tree_id == tree.id and access_version == tree.public_access_version
+    except Exception:  # noqa: BLE001 - any decode failure means no access
+        return False
+
+
+def _resolve_tree(
+    db: Session,
+    tree_id: str,
+    user: User | None,
+    *,
+    write: bool,
+    public_token: str | None = None,
+) -> Tree:
+    tree = db.get(Tree, tree_id)
+    if tree is None:
+        raise HTTPException(status_code=404, detail="Tree not found")
+
+    if user is None:
+        # Anonymous requests succeed only for public read-only trees.
+        if not write and tree.public_role == "viewer":
+            if not _public_access_ok(tree, public_token):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="public_password_required",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return tree
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Admins always have full read/write access, regardless of any explicit
+    # (possibly read-only) membership they were granted.
+    if user.is_admin:
+        return tree
+
+    # Authenticated users: check role. Public trees are still accessible to
+    # authenticated users who have no explicit membership.
+    role = role_for(db, tree, user)
+    if role is None:
+        if not write and tree.public_role == "viewer":
+            if not _public_access_ok(tree, public_token):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="public_password_required",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return tree
+        raise HTTPException(status_code=403, detail="No access to this tree")
+    if write and role == "viewer":
+        raise HTTPException(status_code=403, detail="Read-only access to this tree")
+    return tree
+
+
+def get_readable_tree(
+    tree_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Tree:
+    return _resolve_tree(db, tree_id, user, write=False)
+
+
+def get_readable_tree_public(
+    tree_id: str,
+    user: User | None = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+    public_token: str | None = Header(None, alias="X-Public-Tree-Token"),
+) -> Tree:
+    """Like get_readable_tree but allows anonymous access to public trees."""
+    return _resolve_tree(db, tree_id, user, write=False, public_token=public_token)
+
+
+def get_writable_tree(
+    tree_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Tree:
+    from app.services.system.settings_service import user_has_accepted_legal
+
+    if not user_has_accepted_legal(db, user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Legal terms must be accepted before making changes",
+        )
+    return _resolve_tree(db, tree_id, user, write=True)
+
+
+def explicit_tree_ids(db: Session, user: User) -> list[str]:
+    owned = db.scalars(select(Tree.id).where(Tree.owner_id == user.id)).all()
+    shared = db.scalars(
+        select(TreeMembership.tree_id).where(TreeMembership.user_id == user.id)
+    ).all()
+    return list({*owned, *shared})
+
+
+def accessible_tree_ids(db: Session, user: User) -> list[str]:
+    if user.is_admin:
+        return [t.id for t in db.scalars(select(Tree)).all()]
+    return explicit_tree_ids(db, user)

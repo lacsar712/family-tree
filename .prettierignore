@@ -1,0 +1,12 @@
+# Dependencies & build artifacts
+node_modules
+dist
+build
+coverage
+
+# Lockfiles
+package-lock.json
+uv.lock
+
+# Backend (Python is not formatted by prettier)
+backend

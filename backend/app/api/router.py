@@ -1,0 +1,88 @@
+"""Aggregate API router."""
+
+from fastapi import APIRouter
+
+from app.api.routes import (
+    activity,
+    admin_audit,
+    auth,
+    backups,
+    documents,
+    events,
+    export_import,
+    friends,
+    gallery,
+    geocode,
+    invitations,
+    jobs,
+    legal,
+    media,
+    member_diseases,
+    member_links,
+    member_relations,
+    member_subtrees,
+    members,
+    notifications,
+    oauth,
+    preferences,
+    presence,
+    quality,
+    relation_types,
+    search,
+    settings,
+    sse,
+    statistics,
+    stories,
+    tasks,
+    tree_jobs,
+    tree_public,
+    tree_sharing,
+    tree_transfer,
+    trees,
+    users,
+    virtual_view_content,
+    virtual_views,
+)
+
+api_router = APIRouter()
+api_router.include_router(auth.router)
+api_router.include_router(admin_audit.router)
+api_router.include_router(oauth.router)
+api_router.include_router(users.router)
+api_router.include_router(preferences.router)
+api_router.include_router(settings.router)
+api_router.include_router(friends.router)
+api_router.include_router(relation_types.router)
+api_router.include_router(relation_types.admin_router)
+api_router.include_router(search.router)
+api_router.include_router(backups.router)
+api_router.include_router(trees.router)
+api_router.include_router(tree_public.router)
+api_router.include_router(tree_sharing.router)
+api_router.include_router(tree_jobs.router)
+api_router.include_router(tree_transfer.router)
+api_router.include_router(invitations.router)
+api_router.include_router(invitations.global_router)
+api_router.include_router(virtual_views.router)
+api_router.include_router(virtual_view_content.router)
+api_router.include_router(export_import.router)
+api_router.include_router(jobs.router)
+api_router.include_router(members.router)
+api_router.include_router(member_relations.router)
+api_router.include_router(member_diseases.router)
+api_router.include_router(member_subtrees.router)
+api_router.include_router(member_links.router)
+api_router.include_router(gallery.router)
+api_router.include_router(events.router)
+api_router.include_router(geocode.router)
+api_router.include_router(stories.router)
+api_router.include_router(tasks.router)
+api_router.include_router(documents.router)
+api_router.include_router(activity.router)
+api_router.include_router(presence.router)
+api_router.include_router(quality.router)
+api_router.include_router(statistics.router)
+api_router.include_router(media.router)
+api_router.include_router(sse.router)
+api_router.include_router(legal.router)
+api_router.include_router(notifications.router)

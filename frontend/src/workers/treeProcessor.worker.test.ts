@@ -1,0 +1,172 @@
+import { describe, expect, it } from "vitest";
+import type { Member } from "@/types/member";
+import { buildEdges, buildUnions } from "@/workers/treeProcessor.worker";
+import type { WorkerUnionInfo } from "@/workers/treeProcessor.types";
+
+function member(
+  id: string,
+  x: number,
+  relations: Member["relations"] = [],
+  parents: Member["parents"] = { paternalParent: null, maternalParent: null },
+): Member {
+  return {
+    id,
+    gender: "o",
+    academicTitle: null,
+    firstName: id,
+    middleNames: null,
+    baptismalName: null,
+    lastName: "Test",
+    maidenName: null,
+    imageData: null,
+    deceased: false,
+    adopted: false,
+    date: { birth: "", death: null },
+    parents,
+    additionalData: null,
+    birthplace: null,
+    hometown: null,
+    cemetery: null,
+    placesLived: [],
+    isCollapsed: false,
+    position: { x, y: 0 },
+    relations,
+  };
+}
+
+describe("treeProcessor worker edge styles", () => {
+  it("applies relation type style overrides to couple edges", () => {
+    const members = [member("a", 0), member("b", 300)];
+    const unions: WorkerUnionInfo[] = [
+      {
+        id: "union-a-b",
+        partner1Id: "a",
+        partner2Id: "b",
+        childIds: [],
+        relationType: "married",
+      },
+    ];
+
+    const edges = buildEdges(
+      members,
+      unions,
+      ["parent", "married"],
+      "smoothstep",
+      {
+        married: {
+          color: "#123456",
+          strokeDasharray: "2,4",
+          strokeWidth: 5,
+        },
+      },
+    );
+
+    expect(edges).toHaveLength(2);
+    expect(edges.map((edge) => edge.baseStyle)).toEqual([
+      { stroke: "#123456", strokeDasharray: "2,4", strokeWidth: 5 },
+      { stroke: "#123456", strokeDasharray: "2,4", strokeWidth: 5 },
+    ]);
+  });
+
+  it("styles union→child connectors the same as the couple line they originate from", () => {
+    const members = [
+      member("a", 0),
+      member("b", 300),
+      member("kid", 150, [], { paternalParent: "a", maternalParent: "b" }),
+    ];
+    const unions: WorkerUnionInfo[] = [
+      {
+        id: "union-a-b",
+        partner1Id: "a",
+        partner2Id: "b",
+        childIds: ["kid"],
+        relationType: "married",
+      },
+    ];
+
+    const coupleStyle = {
+      color: "#af0c91",
+      strokeDasharray: "5,5",
+      strokeWidth: 11,
+    };
+    const edges = buildEdges(members, unions, ["parent", "married"], "step", {
+      married: coupleStyle,
+      // A distinct "parent" override that must NOT win for union children.
+      parent: { color: "#91005c", strokeDasharray: "0", strokeWidth: 4 },
+    });
+
+    const childEdge = edges.find((edge) => edge.id.includes(":child:"));
+    expect(childEdge?.baseStyle).toEqual({
+      stroke: "#af0c91",
+      strokeDasharray: "5,5",
+      strokeWidth: 11,
+    });
+  });
+
+  it("applies relation type style overrides to ordinary relation edges", () => {
+    const members = [
+      member("a", 0, [
+        { fromMemberId: "a", toMemberId: "b", relationType: "godparent" },
+      ]),
+      member("b", 300),
+    ];
+
+    const edges = buildEdges(members, [], ["godparent"], "smoothstep", {
+      godparent: {
+        color: "#654321",
+        strokeDasharray: "0",
+        strokeWidth: 3,
+      },
+    });
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0].baseStyle).toEqual({
+      stroke: "#654321",
+      strokeDasharray: "0",
+      strokeWidth: 3,
+    });
+  });
+
+  it("adopts a custom relation type as the colour driver for co-parents", () => {
+    const members = [
+      member("a", 0, [
+        { fromMemberId: "a", toMemberId: "b", relationType: "engaged" },
+      ]),
+      member("b", 300, [
+        { fromMemberId: "b", toMemberId: "a", relationType: "engaged" },
+      ]),
+      member("kid", 150, [], { paternalParent: "a", maternalParent: "b" }),
+    ];
+
+    const unions = buildUnions(members);
+    const union = unions.find((u) => u.childIds.includes("kid"));
+    expect(union?.relationType).toBe("engaged");
+  });
+
+  it("colours union→child connectors with a custom couple relation and does not duplicate the bond as a horizontal edge", () => {
+    const members = [
+      member("a", 0, [
+        { fromMemberId: "a", toMemberId: "b", relationType: "engaged" },
+      ]),
+      member("b", 300, [
+        { fromMemberId: "b", toMemberId: "a", relationType: "engaged" },
+      ]),
+      member("kid", 150, [], { paternalParent: "a", maternalParent: "b" }),
+    ];
+
+    const unions = buildUnions(members);
+    const edges = buildEdges(members, unions, ["parent", "engaged"], "step", {
+      engaged: { color: "#ff00ff", strokeDasharray: "0", strokeWidth: 3 },
+    });
+
+    const childEdge = edges.find((edge) => edge.id.includes(":child:"));
+    expect(childEdge?.baseStyle).toEqual({
+      stroke: "#ff00ff",
+      strokeDasharray: "0",
+      strokeWidth: 3,
+    });
+    // The couple bond is drawn as the union couple line, so there must be no
+    // separate horizontal "relation" edge duplicating it.
+    expect(edges.some((edge) => edge.type === "relation")).toBe(false);
+  });
+});

@@ -1,0 +1,277 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@xyflow/react/dist/style.css";
+@import "react-image-crop/dist/ReactCrop.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-overlay: var(--overlay);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-chart-gender-male: var(--chart-gender-male);
+  --color-chart-gender-female: var(--chart-gender-female);
+  --color-chart-gender-other: var(--chart-gender-other);
+  --color-chart-gender-unknown: var(--chart-gender-unknown);
+  --color-chart-birth: var(--chart-birth);
+  --color-chart-death: var(--chart-death);
+
+  --color-map-event: var(--map-event);
+  --color-map-birthplace: var(--map-birthplace);
+  --color-map-hometown: var(--map-hometown);
+  --color-map-cemetery: var(--map-cemetery);
+  --color-map-places-lived: var(--map-places-lived);
+
+  --color-disease-affected: var(--disease-affected);
+  --color-disease-affected-bg: var(--disease-affected-bg);
+  --color-disease-carrier: var(--disease-carrier);
+  --color-disease-carrier-bg: var(--disease-carrier-bg);
+  --color-disease-other: var(--disease-other);
+  --color-disease-other-bg: var(--disease-other-bg);
+  --color-disease-risk: var(--disease-risk);
+  --color-disease-risk-bg: var(--disease-risk-bg);
+  --color-disease-risk-border: var(--disease-risk-border);
+
+  --color-connection-path: var(--connection-path);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(0.985 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+  --overlay: oklch(0 0 0 / 50%);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.628 0.258 29.234);
+  --border: oklch(0.822 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Statistics charts */
+  --chart-gender-male: oklch(0.585 0.203 277.1);
+  --chart-gender-female: oklch(0.657 0.214 354.3);
+  --chart-gender-other: oklch(0.769 0.156 70.7);
+  --chart-gender-unknown: oklch(0.711 0.035 256.8);
+  --chart-birth: oklch(0.585 0.203 277.1);
+  --chart-death: oklch(0.645 0.225 16.4);
+
+  /* Map marker types */
+  --map-event: oklch(0.769 0.156 70.7);
+  --map-birthplace: oklch(0.623 0.214 259.8);
+  --map-hometown: oklch(0.715 0.135 215.2);
+  --map-cemetery: oklch(0.6 0.14 152);
+  --map-places-lived: oklch(0.627 0.233 303.9);
+
+  /* Disease / risk indicators */
+  --disease-affected: oklch(0.637 0.208 25.3);
+  --disease-affected-bg: oklch(0.637 0.208 25.3 / 0.15);
+  --disease-carrier: oklch(0.828 0.158 76);
+  --disease-carrier-bg: oklch(0.828 0.158 76 / 0.15);
+  --disease-other: oklch(0.711 0.018 261.3);
+  --disease-other-bg: oklch(0.711 0.018 261.3 / 0.15);
+  --disease-risk: oklch(0.762 0.166 84.2);
+  --disease-risk-bg: oklch(0.762 0.166 84.2 / 0.1);
+  --disease-risk-border: oklch(0.762 0.166 84.2 / 0.5);
+
+  /* Tree connection path highlight */
+  --connection-path: oklch(0.762 0.166 84.2);
+
+  /* Success (buttons) */
+  --success: oklch(0.627 0.155 149.2);
+  --success-foreground: oklch(0.985 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.22 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.75 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.752 0.202 25.331);
+  --border: oklch(1 0 0 / 15%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+
+  /* Statistics charts */
+  --chart-gender-male: oklch(0.672 0.182 277.1);
+  --chart-gender-female: oklch(0.724 0.187 354.3);
+  --chart-gender-other: oklch(0.828 0.155 78);
+  --chart-gender-unknown: oklch(0.78 0.03 256.8);
+  --chart-birth: oklch(0.672 0.182 277.1);
+  --chart-death: oklch(0.712 0.196 16.4);
+
+  /* Map marker types */
+  --map-event: oklch(0.828 0.155 78);
+  --map-birthplace: oklch(0.715 0.165 259.8);
+  --map-hometown: oklch(0.79 0.12 215.2);
+  --map-cemetery: oklch(0.72 0.15 152);
+  --map-places-lived: oklch(0.72 0.19 303.9);
+
+  /* Disease / risk indicators */
+  --disease-affected: oklch(0.704 0.191 22.2);
+  --disease-affected-bg: oklch(0.704 0.191 22.2 / 0.22);
+  --disease-carrier: oklch(0.86 0.15 80);
+  --disease-carrier-bg: oklch(0.86 0.15 80 / 0.22);
+  --disease-other: oklch(0.78 0.02 261.3);
+  --disease-other-bg: oklch(0.78 0.02 261.3 / 0.22);
+  --disease-risk: oklch(0.83 0.16 86);
+  --disease-risk-bg: oklch(0.83 0.16 86 / 0.18);
+  --disease-risk-border: oklch(0.83 0.16 86 / 0.6);
+
+  /* Tree connection path highlight */
+  --connection-path: oklch(0.83 0.16 86);
+
+  /* Success (buttons) */
+  --success: oklch(0.696 0.16 149.2);
+  --success-foreground: oklch(0.205 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Tree canvas (Tree view) — enlarge the pointer hit-area of connection handles
+   (member-node handles and the small union-node dots) so a relationship is easier
+   to start dragging, mirroring the larger `connectionRadius` used for snapping onto
+   a target. The invisible `::after` grows the grab zone without changing the visible
+   handle size; it inherits `pointer-events` from the handle, so it is inert while a
+   handle is non-interactive (read-only / selection mode). Scoped to the family-tree
+   canvas so other React Flow graphs (e.g. the linked-trees diagram) are unaffected. */
+.ft-tree-canvas .react-flow__handle::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+}
+
+/* Leaflet map (Map view) — dim OSM tiles in dark mode instead of leaving them
+   bright white against the dark app chrome. The filter approach (rather than
+   a dark tile server) keeps us on the same free OSM tile source in both modes. */
+.dark .leaflet-container {
+  background: var(--background);
+}
+
+.dark .leaflet-layer .leaflet-tile {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)
+    saturate(0.4);
+}
+
+.dark .leaflet-control-attribution {
+  background: var(--background);
+  color: var(--muted-foreground);
+}
+
+.dark .leaflet-control-attribution a {
+  color: var(--foreground);
+}
+
+.dark .leaflet-bar a {
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+.dark .leaflet-bar a:hover {
+  background: var(--accent);
+}
+
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip {
+  background: var(--card);
+  color: var(--card-foreground);
+}
+
+.dark .leaflet-popup-close-button {
+  color: var(--muted-foreground);
+}

@@ -1,0 +1,10 @@
+# The frontend image needs only its source tree.
+*
+!frontend/
+!frontend/**
+
+# frontend/.dockerignore is not read when the build context is the repo root.
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/.env
