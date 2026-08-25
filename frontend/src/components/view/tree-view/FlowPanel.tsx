@@ -20,6 +20,7 @@ import { useFamilyTreeSettings } from "@/hooks/useFamilyTreeSettings";
 import { FlowPanelControls } from "@/components/view/tree-view/FlowPanelControls";
 import GenerationLines from "@/components/view/tree-view/GenerationLines";
 import { CanvasSearch } from "@/components/view/tree-view/CanvasSearch";
+import { CanvasFilters } from "@/components/view/tree-view/CanvasFilters";
 import { EmptyTreeState } from "@/components/view/tree-view/EmptyTreeState";
 import { MemberControls } from "@/components/view/tree-view/MemberControls";
 import { ConnectionRelationCard } from "@/components/view/tree-view/ConnectionRelationCard";
@@ -69,6 +70,9 @@ interface FlowPanelProps {
   // Chromeless, purely-visual rendering for the public read-only tree view:
   // no member sheet, no edit dialogs, no node action buttons.
   publicView?: boolean;
+  // Fully local dataset (built-in demo tree): skip every remote lookup the
+  // canvas would otherwise perform, e.g. the cross-tree name search.
+  localOnly?: boolean;
 }
 
 // Stable reference for "no connection-path highlight". findConnectionPathHighlight
@@ -78,7 +82,10 @@ interface FlowPanelProps {
 // An empty highlight set has no visual effect, so we collapse it to one shared instance.
 const EMPTY_EDGE_KEYS: ReadonlySet<string> = new Set<string>();
 
-export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
+export const FlowPanel = ({
+  publicView = false,
+  localOnly = false,
+}: FlowPanelProps = {}) => {
   const { t } = useTranslation();
   const taskRestrictions = useTreeStore((s) => s.selectedTree?.restrictions);
   const tasksEnabled = !taskRestrictions?.includes("tasks");
@@ -146,6 +153,11 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [membersToDelete, setMembersToDelete] = useState<Member[]>([]);
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
+  // Member ids faded out by the canvas filter bar (null = no filter active).
+  // The nodes are never removed — only their opacity changes.
+  const [dimmedMemberIds, setDimmedMemberIds] = useState<
+    ReadonlySet<string> | null
+  >(null);
 
   // --- Extracted hooks ---
   const locator = useMemberLocator(members, rfInstance);
@@ -504,6 +516,7 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
     publicView,
     accessibleTreeIds,
     selection.isSelectionMode,
+    dimmedMemberIds,
   );
   const viewEdges = useFlowEdges(
     baseEdges,
@@ -719,6 +732,12 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
               treeId={activeTree?.id}
               onFocusRoot={setFocusRoot}
               onOpenOtherTree={openTreeAndLocateMember}
+              localOnly={localOnly}
+            />
+            <CanvasFilters
+              members={members}
+              onDimmedMemberIdsChange={setDimmedMemberIds}
+              className={isMobile ? "w-full" : undefined}
             />
             {windowed && neighborhoodTruncated && (
               <div className="rounded-md border bg-background/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">

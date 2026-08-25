@@ -1010,6 +1010,23 @@
       "clear": "Suche löschen",
       "searching": "Suche läuft…"
     },
+    "filters": {
+      "title": "Filter",
+      "gender": "Geschlecht",
+      "status": "Status",
+      "has-photo": "Mit Foto",
+      "birth-year": "Geburtsjahr",
+      "year-from": "Von",
+      "year-to": "Bis",
+      "all": "Alle",
+      "male": "Männlich",
+      "female": "Weiblich",
+      "other": "Andere",
+      "alive": "Lebend",
+      "deceased": "Verstorben",
+      "clear": "Filter zurücksetzen",
+      "matched-count": "{{matched}} / {{total}} Treffer"
+    },
     "controls": {
       "undo": "Rückgängig (Strg+Z)",
       "redo": "Wiederholen (Strg+Umschalt+Z)",
@@ -1623,6 +1640,7 @@
       "sign-in": "Anmelden",
       "register": "Konto erstellen",
       "sign-in-authentik": "Mit Authentik anmelden",
+      "view-demo": "Demo-Familienbaum ansehen",
       "switch-to-register": "Kein Konto? Registrieren",
       "switch-to-login": "Bereits ein Konto? Anmelden",
       "login-error": "Benutzername oder Passwort ist falsch.",
@@ -1987,6 +2005,11 @@
     "death": "Tod",
     "burial": "Beerdigung",
     "custom": "Benutzerdefiniert"
+  },
+  "demo": {
+    "tree-name": "Demo-Familienbaum",
+    "hint": "Schreibgeschützte Demo mit integrierten Beispieldaten – ohne Konto oder Server.",
+    "back": "Zurück zur Anmeldung"
   },
   "public-tree": {
     "read-only-hint": "Nur-Lese-Ansicht — melde dich an, um den interaktiven Stammbaum zu erkunden.",

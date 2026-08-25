@@ -1010,6 +1010,23 @@
       "clear": "Clear search",
       "searching": "Searching…"
     },
+    "filters": {
+      "title": "Filters",
+      "gender": "Gender",
+      "status": "Status",
+      "has-photo": "Has photo",
+      "birth-year": "Birth year",
+      "year-from": "From",
+      "year-to": "To",
+      "all": "All",
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "alive": "Alive",
+      "deceased": "Deceased",
+      "clear": "Clear filters",
+      "matched-count": "{{matched}} / {{total}} matched"
+    },
     "controls": {
       "undo": "Undo (Ctrl+Z)",
       "redo": "Redo (Ctrl+Shift+Z)",
@@ -1623,6 +1640,7 @@
       "sign-in": "Sign in",
       "register": "Create account",
       "sign-in-authentik": "Sign in with Authentik",
+      "view-demo": "View demo tree",
       "switch-to-register": "Need an account? Register",
       "switch-to-login": "Already have an account? Sign in",
       "login-error": "Incorrect username or password.",
@@ -1987,6 +2005,11 @@
     "death": "Death",
     "burial": "Burial",
     "custom": "Custom"
+  },
+  "demo": {
+    "tree-name": "Demo Family Tree",
+    "hint": "Read-only demo with built-in sample data — no account or server needed.",
+    "back": "Back to login"
   },
   "public-tree": {
     "read-only-hint": "Read-only view — log in to explore the full interactive tree.",

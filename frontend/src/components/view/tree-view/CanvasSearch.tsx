@@ -43,6 +43,11 @@ interface CanvasSearchProps {
   treeId?: string;
   onFocusRoot?: (memberId: string) => void;
   onOpenOtherTree: (treeId: string, memberId: string) => Promise<void>;
+  /**
+   * Local dataset (built-in demo tree): only client-side search against the
+   * loaded members — never call the cross-tree / server search endpoints.
+   */
+  localOnly?: boolean;
 }
 
 function memberName(member: CurrentSearchMember | MemberSearchHitDB): string {
@@ -68,6 +73,7 @@ export const CanvasSearch = ({
   treeId,
   onFocusRoot,
   onOpenOtherTree,
+  localOnly = false,
 }: CanvasSearchProps) => {
   const { t } = useTranslation(undefined, { keyPrefix: "tree-view.search" });
   const searchMembers = useMemberStore((s) => s.searchMembers);
@@ -110,6 +116,14 @@ export const CanvasSearch = ({
     setIsSearchingOtherTrees(false);
 
     if (!normalizedQuery) {
+      setServerResults([]);
+      setIsSearchingCurrent(false);
+      return;
+    }
+
+    if (localOnly) {
+      // Built-in local dataset (demo tree): results come exclusively from the
+      // client-side members pass — never hit server search endpoints.
       setServerResults([]);
       setIsSearchingCurrent(false);
       return;
@@ -160,7 +174,7 @@ export const CanvasSearch = ({
       })();
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [query, searchMembers, searchOtherTrees, treeId, windowed]);
+  }, [query, searchMembers, searchOtherTrees, treeId, windowed, localOnly]);
 
   const currentResults: CurrentSearchMember[] = windowed
     ? serverResults

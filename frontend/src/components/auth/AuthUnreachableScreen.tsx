@@ -14,8 +14,15 @@ import { Spinner } from "@/components/ui/spinner";
 /** Shown after the startup /auth/me check fails transiently (network error or
  *  5xx) — the session credential is retained, so the user can retry instead
  *  of being dropped back to the login screen. */
-export const AuthUnreachableScreen = () => {
+export const AuthUnreachableScreen = ({
+  onViewDemo,
+}: {
+  onViewDemo?: () => void;
+}) => {
   const { t } = useTranslation(undefined, { keyPrefix: "auth.session" });
+  const { t: tLogin } = useTranslation(undefined, {
+    keyPrefix: "auth.login",
+  });
   const retryAuthCheck = useAuthStore((s) => s.retryAuthCheck);
   const [retrying, setRetrying] = useState(false);
 
@@ -35,7 +42,7 @@ export const AuthUnreachableScreen = () => {
           <CardTitle>{t("unreachable-title")}</CardTitle>
           <CardDescription>{t("unreachable-description")}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-2">
           <Button
             className="w-full"
             onClick={() => void handleRetry()}
@@ -43,6 +50,15 @@ export const AuthUnreachableScreen = () => {
           >
             {retrying ? <Spinner className="size-4" /> : t("unreachable-retry")}
           </Button>
+          {onViewDemo && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={onViewDemo}
+            >
+              {tLogin("view-demo")}
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>
