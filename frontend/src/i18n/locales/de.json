@@ -1010,6 +1010,23 @@
       "clear": "Suche löschen",
       "searching": "Suche läuft…"
     },
+    "filters": {
+      "title": "Filter",
+      "gender": "Geschlecht",
+      "status": "Status",
+      "all": "Alle",
+      "male": "Männlich",
+      "female": "Weiblich",
+      "other": "Divers",
+      "alive": "Lebend",
+      "deceased": "Verstorben",
+      "has-photo": "Hat Foto",
+      "birth-year": "Geburtsjahr",
+      "birth-year-from": "Von",
+      "birth-year-to": "Bis",
+      "matched": "Treffer {{matched}} / {{total}}",
+      "reset": "Filter zurücksetzen"
+    },
     "controls": {
       "undo": "Rückgängig (Strg+Z)",
       "redo": "Wiederholen (Strg+Umschalt+Z)",
@@ -1640,7 +1657,8 @@
       "totp-code": "Authentifizierungscode",
       "totp-verify": "Bestätigen",
       "totp-back": "Zurück zur Anmeldung",
-      "totp-error": "Ungültiger Code. Bitte erneut versuchen."
+      "totp-error": "Ungültiger Code. Bitte erneut versuchen.",
+      "view-demo": "Demo-Stammbaum ansehen"
     },
     "change-password": {
       "title": "Passwort ändern",
@@ -1999,6 +2017,11 @@
       "submit": "Entsperren",
       "error": "Falsches Passwort. Bitte versuche es erneut."
     }
+  },
+  "demo-tree": {
+    "title": "Demo-Stammbaum",
+    "hint": "Lokale Demo-Daten — kein Konto erforderlich, schreibgeschützt.",
+    "back-to-login": "Zurück zur Anmeldung"
   },
   "map-view": {
     "view": {
