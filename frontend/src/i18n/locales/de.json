@@ -1010,6 +1010,22 @@
       "clear": "Suche löschen",
       "searching": "Suche läuft…"
     },
+    "filters": {
+      "title": "Filtern",
+      "all": "Alle",
+      "male": "Männlich",
+      "female": "Weiblich",
+      "other": "Andere",
+      "all-status": "Status egal",
+      "alive": "Lebend",
+      "deceased": "Verstorben",
+      "has-photo": "Mit Foto",
+      "born": "Geboren",
+      "start-year": "Startjahr",
+      "end-year": "Endjahr",
+      "matched-count": "{{matched}} / {{total}} passen",
+      "clear": "Filter löschen"
+    },
     "controls": {
       "undo": "Rückgängig (Strg+Z)",
       "redo": "Wiederholen (Strg+Umschalt+Z)",
@@ -1640,7 +1656,8 @@
       "totp-code": "Authentifizierungscode",
       "totp-verify": "Bestätigen",
       "totp-back": "Zurück zur Anmeldung",
-      "totp-error": "Ungültiger Code. Bitte erneut versuchen."
+      "totp-error": "Ungültiger Code. Bitte erneut versuchen.",
+      "view-demo": "Demo-Stammbaum ansehen"
     },
     "change-password": {
       "title": "Passwort ändern",
@@ -1999,6 +2016,10 @@
       "submit": "Entsperren",
       "error": "Falsches Passwort. Bitte versuche es erneut."
     }
+  },
+  "demo-tree": {
+    "read-only-hint": "Lokaler Demo-Stammbaum — keine Anmeldung und keine Netzwerkdaten erforderlich.",
+    "back-to-login": "Zurück zur Anmeldung"
   },
   "map-view": {
     "view": {

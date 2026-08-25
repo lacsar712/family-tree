@@ -1010,6 +1010,22 @@
       "clear": "Clear search",
       "searching": "Searching…"
     },
+    "filters": {
+      "title": "Filter",
+      "all": "All",
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "all-status": "Any status",
+      "alive": "Alive",
+      "deceased": "Deceased",
+      "has-photo": "Has photo",
+      "born": "Born",
+      "start-year": "Start year",
+      "end-year": "End year",
+      "matched-count": "{{matched}} / {{total}} matched",
+      "clear": "Clear filters"
+    },
     "controls": {
       "undo": "Undo (Ctrl+Z)",
       "redo": "Redo (Ctrl+Shift+Z)",
@@ -1640,7 +1656,8 @@
       "totp-code": "Authentication code",
       "totp-verify": "Verify",
       "totp-back": "Back to login",
-      "totp-error": "Invalid code. Please try again."
+      "totp-error": "Invalid code. Please try again.",
+      "view-demo": "View demo family tree"
     },
     "change-password": {
       "title": "Change password",
@@ -1999,6 +2016,10 @@
       "submit": "Unlock",
       "error": "Incorrect password. Please try again."
     }
+  },
+  "demo-tree": {
+    "read-only-hint": "Built-in local demo tree — no sign-in or network data required.",
+    "back-to-login": "Back to sign-in"
   },
   "map-view": {
     "view": {
