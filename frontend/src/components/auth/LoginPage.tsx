@@ -15,6 +15,7 @@ import {
 import { LegalDocsDialog } from "@/components/legal/LegalDocsDialog";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { DemoTreeViewer } from "@/components/demo/DemoTreeViewer";
 
 const ADMIN_INITIATED_DELETION = "admin_initiated_deletion";
 
@@ -37,6 +38,7 @@ export const LoginPage = () => {
   const [pendingDeletion, setPendingDeletion] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [legalDocsOpen, setLegalDocsOpen] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
 
   // TOTP step
   const [totpCode, setTotpCode] = useState("");
@@ -102,6 +104,10 @@ export const LoginPage = () => {
       setRestoreLoading(false);
     }
   };
+
+  if (showDemo) {
+    return <DemoTreeViewer onBack={() => setShowDemo(false)} />;
+  }
 
   if (totpRequired) {
     return (
@@ -202,6 +208,14 @@ export const LoginPage = () => {
               {mode === "register" ? t("register") : t("sign-in")}
             </Button>
           </form>
+
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowDemo(true)}
+          >
+            {t("view-demo")}
+          </Button>
 
           {config?.authentik_enabled && config.authentik_login_url && (
             <Button

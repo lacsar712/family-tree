@@ -42,6 +42,7 @@ export const useFlowNodes = (
   // normally instead of guessing.
   accessibleTreeIds?: ReadonlySet<string>,
   isSelectionMode = false,
+  dimmedMemberIds: ReadonlySet<string> = EMPTY_MEMBER_IDS,
 ) => {
   const { t } = useTranslation();
 
@@ -88,6 +89,7 @@ export const useFlowNodes = (
             !connectionPathNodeIds.has(node.id),
           isReadOnly,
           isSelectionMode,
+          isFilterDimmed: isMemberNode && dimmedMemberIds.has(node.id),
           // Public view: block the name-link detail dialog too (onView/onEdit
           // are already nulled out above via purelyVisual/isReadOnly).
           disableNameLink: purelyVisual,
@@ -146,6 +148,7 @@ export const useFlowNodes = (
     purelyVisual,
     accessibleTreeIds,
     isSelectionMode,
+    dimmedMemberIds,
     t,
   ]);
 };

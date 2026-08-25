@@ -20,6 +20,7 @@ import { useFamilyTreeSettings } from "@/hooks/useFamilyTreeSettings";
 import { FlowPanelControls } from "@/components/view/tree-view/FlowPanelControls";
 import GenerationLines from "@/components/view/tree-view/GenerationLines";
 import { CanvasSearch } from "@/components/view/tree-view/CanvasSearch";
+import { CanvasMemberFilters } from "@/components/view/tree-view/CanvasMemberFilters";
 import { EmptyTreeState } from "@/components/view/tree-view/EmptyTreeState";
 import { MemberControls } from "@/components/view/tree-view/MemberControls";
 import { ConnectionRelationCard } from "@/components/view/tree-view/ConnectionRelationCard";
@@ -61,14 +62,19 @@ import {
   readMemberSheetDeepLink,
 } from "@/utils/memberSheetState";
 import { getGenerationLineGap } from "@/utils/generationLineSpacing";
+import {
+  CanvasMemberFilterState,
+  DEFAULT_CANVAS_MEMBER_FILTER,
+  getCanvasMatchedMemberIds,
+  isDefaultCanvasMemberFilter,
+} from "@/utils/canvasMemberFilter";
 
 const nodeTypes = { familyMember: FamilyNode, unionNode: UnionNode };
 const edgeTypes = { relation: RelationEdge };
 
 interface FlowPanelProps {
-  // Chromeless, purely-visual rendering for the public read-only tree view:
-  // no member sheet, no edit dialogs, no node action buttons.
   publicView?: boolean;
+  fitOnReady?: boolean;
 }
 
 // Stable reference for "no connection-path highlight". findConnectionPathHighlight
@@ -78,7 +84,10 @@ interface FlowPanelProps {
 // An empty highlight set has no visual effect, so we collapse it to one shared instance.
 const EMPTY_EDGE_KEYS: ReadonlySet<string> = new Set<string>();
 
-export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
+export const FlowPanel = ({
+  publicView = false,
+  fitOnReady = false,
+}: FlowPanelProps = {}) => {
   const { t } = useTranslation();
   const taskRestrictions = useTreeStore((s) => s.selectedTree?.restrictions);
   const tasksEnabled = !taskRestrictions?.includes("tasks");
@@ -146,6 +155,9 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [membersToDelete, setMembersToDelete] = useState<Member[]>([]);
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
+  const [memberFilters, setMemberFilters] = useState<CanvasMemberFilterState>(
+    DEFAULT_CANVAS_MEMBER_FILTER,
+  );
 
   // --- Extracted hooks ---
   const locator = useMemberLocator(members, rfInstance);
@@ -485,6 +497,20 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
     return ids;
   }, [hiddenNodeIds, unions]);
 
+  const matchedMemberIds = useMemo(
+    () => getCanvasMatchedMemberIds(members, memberFilters),
+    [members, memberFilters],
+  );
+  const memberFiltersActive = !isDefaultCanvasMemberFilter(memberFilters);
+  const dimmedMemberIds = useMemo(() => {
+    if (!memberFiltersActive) return new Set<string>();
+    const ids = new Set<string>();
+    for (const member of members) {
+      if (!matchedMemberIds.has(member.id)) ids.add(member.id);
+    }
+    return ids;
+  }, [matchedMemberIds, memberFiltersActive, members]);
+
   const viewNodes = useFlowNodes(
     nodes,
     pending.setEditingMemberId,
@@ -504,6 +530,7 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
     publicView,
     accessibleTreeIds,
     selection.isSelectionMode,
+    dimmedMemberIds,
   );
   const viewEdges = useFlowEdges(
     baseEdges,
@@ -560,6 +587,15 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
     fittedViewRef.current = activeTree.id;
     requestAnimationFrame(() => fitViewToAllNodes(rfInstance, 0.2));
   }, [isReady, rfInstance, isVirtualView, activeTree, nodes]);
+
+  const fittedReadyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!fitOnReady || !isReady || !rfInstance || !activeTree) return;
+    if (nodes.length === 0 || !rfInstance.viewportInitialized) return;
+    if (fittedReadyRef.current === activeTree.id) return;
+    fittedReadyRef.current = activeTree.id;
+    requestAnimationFrame(() => fitViewToAllNodes(rfInstance, 0.2));
+  }, [fitOnReady, isReady, rfInstance, activeTree, nodes]);
 
   useEffect(() => {
     setSelectedNodes((prevSelected) => {
@@ -716,10 +752,22 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
               onLocate={locator.locateMember}
               className={isMobile ? "w-full" : undefined}
               windowed={windowed}
+              publicView={publicView}
               treeId={activeTree?.id}
               onFocusRoot={setFocusRoot}
               onOpenOtherTree={openTreeAndLocateMember}
             />
+            {members.length > 0 && (
+              <CanvasMemberFilters
+                filters={memberFilters}
+                matchedCount={matchedMemberIds.size}
+                totalCount={members.length}
+                onChange={setMemberFilters}
+                className={
+                  isMobile ? "w-full" : "w-[min(56rem,calc(100vw_-_2rem))]"
+                }
+              />
+            )}
             {windowed && neighborhoodTruncated && (
               <div className="rounded-md border bg-background/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
                 {t("tree-view.windowed.banner", {

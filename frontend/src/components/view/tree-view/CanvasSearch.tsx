@@ -40,6 +40,7 @@ interface CanvasSearchProps {
   className?: string;
   /** Present only when the tree is in windowed (focused) mode. */
   windowed?: boolean;
+  publicView?: boolean;
   treeId?: string;
   onFocusRoot?: (memberId: string) => void;
   onOpenOtherTree: (treeId: string, memberId: string) => Promise<void>;
@@ -65,6 +66,7 @@ export const CanvasSearch = ({
   onLocate,
   className,
   windowed = false,
+  publicView = false,
   treeId,
   onFocusRoot,
   onOpenOtherTree,
@@ -108,6 +110,12 @@ export const CanvasSearch = ({
 
     setOtherTreeResults([]);
     setIsSearchingOtherTrees(false);
+
+    if (publicView) {
+      setServerResults([]);
+      setIsSearchingCurrent(false);
+      return;
+    }
 
     if (!normalizedQuery) {
       setServerResults([]);
@@ -160,11 +168,10 @@ export const CanvasSearch = ({
       })();
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [query, searchMembers, searchOtherTrees, treeId, windowed]);
+  }, [query, searchMembers, searchOtherTrees, treeId, windowed, publicView]);
 
-  const currentResults: CurrentSearchMember[] = windowed
-    ? serverResults
-    : clientResults;
+  const currentResults: CurrentSearchMember[] =
+    windowed && !publicView ? serverResults : clientResults;
   const otherTreeGroups = useMemo(() => {
     const groups = new Map<string, OtherTreeGroup>();
     for (const member of otherTreeResults) {

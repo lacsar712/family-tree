@@ -173,6 +173,12 @@ export const FamilyNode = ({ data, selected }: NodeProps<Node<Member>>) => {
   const isConnectionSelected = data.isConnectionSelected === true;
   const isConnectionPath = data.isConnectionPath === true;
   const isConnectionDimmed = data.isConnectionDimmed === true;
+  const isFilterDimmed = data.isFilterDimmed === true;
+  const opacityClass = isConnectionDimmed
+    ? "opacity-30"
+    : isFilterDimmed
+      ? "opacity-25"
+      : "opacity-100";
   const borderColor =
     selected || isConnectionSelected
       ? "var(--primary)"
@@ -229,7 +235,7 @@ export const FamilyNode = ({ data, selected }: NodeProps<Node<Member>>) => {
       onKeyDown={onNodeKeyDown}
       className={[
         "relative flex flex-col items-center shadow-sm p-2 bg-card transition-opacity duration-200",
-        isConnectionDimmed ? "opacity-30" : "opacity-100",
+        opacityClass,
         isHighlighted || isConnectionSelected
           ? "ring-4 ring-primary ring-offset-2 ring-offset-background"
           : "",
