@@ -42,6 +42,9 @@ export const useFlowNodes = (
   // normally instead of guessing.
   accessibleTreeIds?: ReadonlySet<string>,
   isSelectionMode = false,
+  // Members that fail the active canvas filter. They are dimmed (not removed)
+  // so the layout, edges and generation lines are untouched.
+  filterDimmedIds: ReadonlySet<string> = EMPTY_MEMBER_IDS,
 ) => {
   const { t } = useTranslation();
 
@@ -86,6 +89,8 @@ export const useFlowNodes = (
             isConnectionMode &&
             hasConnectionPath &&
             !connectionPathNodeIds.has(node.id),
+          // Faded (but kept) when it fails the active canvas member filter.
+          isFilterDimmed: isMemberNode && filterDimmedIds.has(node.id),
           isReadOnly,
           isSelectionMode,
           // Public view: block the name-link detail dialog too (onView/onEdit
@@ -146,6 +151,7 @@ export const useFlowNodes = (
     purelyVisual,
     accessibleTreeIds,
     isSelectionMode,
+    filterDimmedIds,
     t,
   ]);
 };

@@ -18,7 +18,12 @@ import { useTranslation } from "react-i18next";
 
 const ADMIN_INITIATED_DELETION = "admin_initiated_deletion";
 
-export const LoginPage = () => {
+interface LoginPageProps {
+  /** Opens the local, backend-free demo tree without authenticating. */
+  onViewDemo?: () => void;
+}
+
+export const LoginPage = ({ onViewDemo }: LoginPageProps = {}) => {
   const { t } = useTranslation(undefined, { keyPrefix: "auth.login" });
   const { t: tLegal } = useTranslation(undefined, { keyPrefix: "legal" });
   const config = useAuthStore((s) => s.config);
@@ -212,6 +217,16 @@ export const LoginPage = () => {
               }}
             >
               {t("sign-in-authentik")}
+            </Button>
+          )}
+
+          {onViewDemo && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={onViewDemo}
+            >
+              {t("view-demo")}
             </Button>
           )}
 

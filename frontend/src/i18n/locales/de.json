@@ -1010,6 +1010,23 @@
       "clear": "Suche löschen",
       "searching": "Suche läuft…"
     },
+    "filter": {
+      "filters": "Filter",
+      "gender": "Geschlecht",
+      "status": "Status",
+      "has-photo": "Mit Foto",
+      "all": "Alle",
+      "male": "Männlich",
+      "female": "Weiblich",
+      "other": "Divers",
+      "alive": "Lebend",
+      "deceased": "Verstorben",
+      "birth-year": "Geburtsjahr",
+      "birth-year-from": "Von",
+      "birth-year-to": "Bis",
+      "clear": "Filter zurücksetzen",
+      "match-count": "{{matched}} / {{total}} Personen gefunden"
+    },
     "controls": {
       "undo": "Rückgängig (Strg+Z)",
       "redo": "Wiederholen (Strg+Umschalt+Z)",
@@ -1623,6 +1640,7 @@
       "sign-in": "Anmelden",
       "register": "Konto erstellen",
       "sign-in-authentik": "Mit Authentik anmelden",
+      "view-demo": "Demo-Stammbaum ansehen",
       "switch-to-register": "Kein Konto? Registrieren",
       "switch-to-login": "Bereits ein Konto? Anmelden",
       "login-error": "Benutzername oder Passwort ist falsch.",
@@ -1999,6 +2017,11 @@
       "submit": "Entsperren",
       "error": "Falsches Passwort. Bitte versuche es erneut."
     }
+  },
+  "demo-tree": {
+    "title": "Demo-Stammbaum",
+    "read-only-hint": "Nur-Lese-Demo — probiere die Filter mit Beispieldaten aus. Melde dich an, um deinen eigenen Stammbaum zu erstellen.",
+    "back-to-login": "Zurück zur Anmeldung"
   },
   "map-view": {
     "view": {
