@@ -173,6 +173,8 @@ export const FamilyNode = ({ data, selected }: NodeProps<Node<Member>>) => {
   const isConnectionSelected = data.isConnectionSelected === true;
   const isConnectionPath = data.isConnectionPath === true;
   const isConnectionDimmed = data.isConnectionDimmed === true;
+  // Faded by the canvas member filter bar — stays in place at ~25% opacity.
+  const isFilterDimmed = data.isFilterDimmed === true;
   const borderColor =
     selected || isConnectionSelected
       ? "var(--primary)"
@@ -229,7 +231,11 @@ export const FamilyNode = ({ data, selected }: NodeProps<Node<Member>>) => {
       onKeyDown={onNodeKeyDown}
       className={[
         "relative flex flex-col items-center shadow-sm p-2 bg-card transition-opacity duration-200",
-        isConnectionDimmed ? "opacity-30" : "opacity-100",
+        isFilterDimmed
+          ? "opacity-25"
+          : isConnectionDimmed
+            ? "opacity-30"
+            : "opacity-100",
         isHighlighted || isConnectionSelected
           ? "ring-4 ring-primary ring-offset-2 ring-offset-background"
           : "",

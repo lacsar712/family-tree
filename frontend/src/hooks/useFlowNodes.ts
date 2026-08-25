@@ -42,6 +42,10 @@ export const useFlowNodes = (
   // normally instead of guessing.
   accessibleTreeIds?: ReadonlySet<string>,
   isSelectionMode = false,
+  // Member nodes faded out by the canvas filter bar. The nodes stay in the
+  // layout — only their opacity changes (union dots and edges are unaffected).
+  // null/undefined = no filter active.
+  dimmedMemberIds: ReadonlySet<string> | null | undefined = EMPTY_MEMBER_IDS,
 ) => {
   const { t } = useTranslation();
 
@@ -86,6 +90,9 @@ export const useFlowNodes = (
             isConnectionMode &&
             hasConnectionPath &&
             !connectionPathNodeIds.has(node.id),
+          // Canvas member filter: fade non-matching members without removing
+          // them from the layout.
+          isFilterDimmed: isMemberNode && !!dimmedMemberIds?.has(node.id),
           isReadOnly,
           isSelectionMode,
           // Public view: block the name-link detail dialog too (onView/onEdit
@@ -146,6 +153,7 @@ export const useFlowNodes = (
     purelyVisual,
     accessibleTreeIds,
     isSelectionMode,
+    dimmedMemberIds,
     t,
   ]);
 };

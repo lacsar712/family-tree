@@ -17,6 +17,7 @@ import { UnsavedChangesGuard } from "@/components/layout/UnsavedChangesGuard";
 import { LoginPage } from "@/components/auth/LoginPage";
 import { AuthUnreachableScreen } from "@/components/auth/AuthUnreachableScreen";
 import { PublicTreeViewer } from "@/components/public/PublicTreeViewer";
+import { DemoTreeViewer } from "@/components/public/DemoTreeViewer";
 import { ReloginDialog } from "@/components/auth/ReloginDialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Toaster } from "@/components/ui/sonner";
@@ -32,6 +33,8 @@ export const App = () => {
   const openTreeById = useTreeStore((s) => s.openTreeById);
   const [treesBootstrapped, setTreesBootstrapped] = useState(false);
   const [publicTreeFallback, setPublicTreeFallback] = useState(false);
+  // Local, login-free demo tree (built-in sample data, no backend).
+  const [demoOpen, setDemoOpen] = useState(false);
   const adminOpen = useAdminViewStore((s) => s.open);
   const settingsOpen = useUserSettingsViewStore((s) => s.open);
 
@@ -126,15 +129,19 @@ export const App = () => {
       );
     }
 
+    if (demoOpen) {
+      return <DemoTreeViewer onExit={() => setDemoOpen(false)} />;
+    }
+
     if (status === "unreachable") {
-      return <AuthUnreachableScreen />;
+      return <AuthUnreachableScreen onViewDemo={() => setDemoOpen(true)} />;
     }
 
     if (status === "unauthenticated") {
       if (pendingPublicTreeId) {
         return <PublicTreeViewer treeId={pendingPublicTreeId} />;
       }
-      return <LoginPage />;
+      return <LoginPage onViewDemo={() => setDemoOpen(true)} />;
     }
 
     if (!treesBootstrapped) {
