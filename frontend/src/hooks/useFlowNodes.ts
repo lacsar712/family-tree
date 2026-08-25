@@ -42,6 +42,9 @@ export const useFlowNodes = (
   // normally instead of guessing.
   accessibleTreeIds?: ReadonlySet<string>,
   isSelectionMode = false,
+  // Members excluded by the canvas filter bar: kept in the layout, only
+  // rendered dimmed (see FamilyNode).
+  filterDimmedIds: ReadonlySet<string> = EMPTY_MEMBER_IDS,
 ) => {
   const { t } = useTranslation();
 
@@ -86,6 +89,7 @@ export const useFlowNodes = (
             isConnectionMode &&
             hasConnectionPath &&
             !connectionPathNodeIds.has(node.id),
+          isFilterDimmed: filterDimmedIds.has(node.id),
           isReadOnly,
           isSelectionMode,
           // Public view: block the name-link detail dialog too (onView/onEdit
@@ -146,6 +150,7 @@ export const useFlowNodes = (
     purelyVisual,
     accessibleTreeIds,
     isSelectionMode,
+    filterDimmedIds,
     t,
   ]);
 };

@@ -20,6 +20,12 @@ import { useFamilyTreeSettings } from "@/hooks/useFamilyTreeSettings";
 import { FlowPanelControls } from "@/components/view/tree-view/FlowPanelControls";
 import GenerationLines from "@/components/view/tree-view/GenerationLines";
 import { CanvasSearch } from "@/components/view/tree-view/CanvasSearch";
+import { CanvasFilters } from "@/components/view/tree-view/CanvasFilters";
+import {
+  CanvasMemberFilterState,
+  DEFAULT_CANVAS_MEMBER_FILTER,
+  applyCanvasMemberFilter,
+} from "@/utils/canvasMemberFilter";
 import { EmptyTreeState } from "@/components/view/tree-view/EmptyTreeState";
 import { MemberControls } from "@/components/view/tree-view/MemberControls";
 import { ConnectionRelationCard } from "@/components/view/tree-view/ConnectionRelationCard";
@@ -146,6 +152,16 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [membersToDelete, setMembersToDelete] = useState<Member[]>([]);
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
+
+  // Canvas filter bar: non-matching members stay in the layout and are only
+  // dimmed (edges and generation lines are untouched).
+  const [canvasFilters, setCanvasFilters] = useState<CanvasMemberFilterState>(
+    DEFAULT_CANVAS_MEMBER_FILTER,
+  );
+  const canvasFilterResult = useMemo(
+    () => applyCanvasMemberFilter(members, canvasFilters),
+    [members, canvasFilters],
+  );
 
   // --- Extracted hooks ---
   const locator = useMemberLocator(members, rfInstance);
@@ -504,6 +520,7 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
     publicView,
     accessibleTreeIds,
     selection.isSelectionMode,
+    canvasFilterResult.dimmedIds,
   );
   const viewEdges = useFlowEdges(
     baseEdges,
@@ -720,6 +737,14 @@ export const FlowPanel = ({ publicView = false }: FlowPanelProps = {}) => {
               onFocusRoot={setFocusRoot}
               onOpenOtherTree={openTreeAndLocateMember}
             />
+            {members.length > 0 && (
+              <CanvasFilters
+                filters={canvasFilters}
+                onChange={setCanvasFilters}
+                matchedCount={canvasFilterResult.matchedCount}
+                totalCount={canvasFilterResult.totalCount}
+              />
+            )}
             {windowed && neighborhoodTruncated && (
               <div className="rounded-md border bg-background/90 px-3 py-1.5 text-xs text-muted-foreground shadow-md">
                 {t("tree-view.windowed.banner", {

@@ -18,7 +18,12 @@ import { useTranslation } from "react-i18next";
 
 const ADMIN_INITIATED_DELETION = "admin_initiated_deletion";
 
-export const LoginPage = () => {
+interface LoginPageProps {
+  /** Opens the login-free local demo tree (read-only, no backend data). */
+  onViewDemo?: () => void;
+}
+
+export const LoginPage = ({ onViewDemo }: LoginPageProps) => {
   const { t } = useTranslation(undefined, { keyPrefix: "auth.login" });
   const { t: tLegal } = useTranslation(undefined, { keyPrefix: "legal" });
   const config = useAuthStore((s) => s.config);
@@ -240,6 +245,12 @@ export const LoginPage = () => {
                 ? t("switch-to-register")
                 : t("switch-to-login")}
             </button>
+          )}
+
+          {onViewDemo && (
+            <Button variant="outline" className="w-full" onClick={onViewDemo}>
+              {t("view-demo")}
+            </Button>
           )}
 
           <button
